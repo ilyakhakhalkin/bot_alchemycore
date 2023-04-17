@@ -1,0 +1,38 @@
+version: '3.3'
+
+services:
+  db:
+    container_name: db
+    image: postgres:latest
+    ports:
+        - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - ./.env
+
+  backend:
+    container_name: tgbot
+    build:
+      context: ./
+    restart: always
+    command: >
+      bash -c "python3 tgbot.py"
+    depends_on:
+      - db
+    env_file:
+      - ./.env
+
+  # nginx:
+  #     container_name: nginx
+  #     image: nginx:1.21.3-alpine
+  #     ports:
+  #       - "80:80"
+  #     volumes:
+  #       - ./nginx:/etc/nginx/conf.d/
+  #     restart: always
+  #     depends_on:
+  #       - backend
+
+volumes:
+  postgres_data:
