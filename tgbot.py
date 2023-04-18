@@ -17,19 +17,9 @@ class TGBot:
 
     def run_bot(self):
         self.start()
-        self.bot.polling()
+        self.bot.infinity_polling()
 
 
 if __name__ == '__main__':
-
-    if config.DEBUG:
-        bot = TGBot()
-        bot.run_bot()
-
-    else:
-        while True:
-            try:
-                bot = TGBot()
-                bot.run_bot()
-            except:
-                pass
+    bot = TGBot()
+    bot.run_bot()

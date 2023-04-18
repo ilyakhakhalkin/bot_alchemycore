@@ -3,7 +3,7 @@ from telebot.types import KeyboardButton
 from telebot.types import ReplyKeyboardMarkup, ReplyKeyboardRemove
 
 from settings import config
-from data_base.dbalch import DBManager
+from data_base.dbalchemy import DBManager
 
 
 class Keyboard:
