@@ -8,9 +8,14 @@ DEBUG = os.getenv('DEBUG', default=False)
 TOKEN = os.getenv('TOKEN')
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
 DEFAULT_ADMINS = os.getenv('DEFAULT_ADMINS')
+
 GRANT_PERM_COMMAND = os.getenv('GRANT_PERM_COMMAND')
 REMOVE_PERM_COMMAND = os.getenv('REMOVE_PERM_COMMAND')
 LOAD_DATA_COMMAND = os.getenv('LOAD_DATA_COMMAND')
+BLOCK_USER_COMMAND = os.getenv('BLOCK_USER_COMMAND')
+UNBLOCK_USER_COMMAND = os.getenv('UNBLOCK_USER_COMMAND')
+GET_STAT_COMMAND = os.getenv('GET_STAT_COMMAND')
+
 NAME_DB = os.getenv('NAME_DB')
 VERSION = os.getenv('VERSION')
 AUTHOR = os.getenv('AUTHOR')
@@ -22,14 +27,18 @@ POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.join(os.path.dirname(__file__), '..')
 
 DATABASE = os.path.join(
     f'postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 )
 
+EXCEL_FOLDER = 'excel_files'
+
 if DEBUG:
+    TOKEN = os.getenv('DEBUG_TOKEN')
     DATABASE = os.path.join('sqlite:///' + BASE_DIR, NAME_DB)
+    print(DATABASE)
 
 COUNT = 0
 
@@ -45,7 +54,8 @@ KEYBOARD = {
     'REQUEST_TEACHER': emojize(':teacher: Записаться на бесплатную встречу'),
     'DECLINE_TEACHER': emojize('Нет, спасибо'),
     'MAIN_MENU': emojize('Главное меню'),
-    'MY_RESULTS': emojize('Мои результаты')
+    'MY_RESULTS': emojize('Мои результаты'),
+    'COMPLETE_QUIZ': emojize(':face_with_peeking_eye: Закончить тест')
 }
 
 COMMANDS = {

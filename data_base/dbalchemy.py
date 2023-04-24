@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
 from typing import List
 
 import pandas as pd
 from sqlalchemy import create_engine, insert, select, delete, and_, or_, update
 from sqlalchemy.sql.expression import true
+from sqlalchemy.sql import func
 
 from settings import config
 
@@ -20,6 +22,7 @@ from .models.responses import responses
 class DBManager(metaclass=Singleton):
 
     def __init__(self) -> None:
+
         self.engine = create_engine(config.DATABASE, echo=True)
         self.metadata = metadata
 
@@ -28,9 +31,20 @@ class DBManager(metaclass=Singleton):
 
         self.connection = self.engine.connect()
 
-    def get_user(self, user_id: int):
-        s = select(users).where(users.c.id == user_id)
+    def get_user(self, user_id: int = None, username:str = None):
+        s = select(users)
+
+        if username is not None:
+            s = s.where(users.c.username == username)
+
+        if user_id is not None:
+            s = s.where(users.c.id == user_id)
+
         return self.connection.execute(s).first()
+
+    def get_user_count(self):
+        s = select(func.count()).select_from(users)
+        return self.connection.execute(s).first()[0]
 
     def create_user(
         self,
@@ -40,6 +54,7 @@ class DBManager(metaclass=Singleton):
         first_name: str = None,
         last_name: str = None,
         is_admin: bool = False,
+        blocked: bool = False,
     ):
         data = [
             {
@@ -48,14 +63,30 @@ class DBManager(metaclass=Singleton):
                 'first_name': getattr(user_data, 'first_name', first_name),
                 'last_name': getattr(user_data, 'last_name', last_name),
                 'is_admin': getattr(user_data, 'is_admin', is_admin),
+                'blocked': getattr(user_data, 'blocked', blocked),
             }
         ]
+
+        if data[0]['username'] in config.DEFAULT_ADMINS:
+            data[0]['is_admin'] = True
 
         ins = users.insert()
         rp = self.connection.execute(ins, data)
         self.connection.commit()
 
         return self.get_user(user_id=rp.inserted_primary_key[0])
+
+    def block_user(self, user_id):
+        u = update(users).where(users.c.id == user_id)
+        u = u.values(blocked=True)
+        self.connection.execute(u)
+        self.connection.commit()
+
+    def unblock_user(self, user_id):
+        u = update(users).where(users.c.id == user_id)
+        u = u.values(blocked=False)
+        self.connection.execute(u)
+        self.connection.commit()
 
     def get_quizzes(self, id: int = None, name: str = None):
         s = select(quizzes)
@@ -274,7 +305,7 @@ class DBManager(metaclass=Singleton):
         rp = self.connection.execute(s).fetchall()
 
         score = {
-            'total': len(rp),
+            'total': len(rp) if len(rp) > 0 else 30,
             'points': 0,
         }
 
@@ -289,7 +320,7 @@ class DBManager(metaclass=Singleton):
     def get_admins(self):
         s = select(users).where(
             or_(
-                users.c.is_admin is True,
+                users.c.is_admin == true(),
                 users.c.username.in_(
                     [admin for admin in config.DEFAULT_ADMINS]
                 )
@@ -299,8 +330,11 @@ class DBManager(metaclass=Singleton):
 
     def export_session(self, user):
         qsession = self.get_quiz_session(user.id)
+
+        if qsession is None:
+            return None, None
+
         quiz = self.get_quizzes(id=qsession.quiz_id)
-        self.get_quizzes()
         user_responses = self.get_responses(qsession_id=qsession.id)
 
         data = []
@@ -331,12 +365,28 @@ class DBManager(metaclass=Singleton):
             )
         )
         styled.apply(color, axis=1)
-        filename = f'{user.username} {quiz.name}.xlsx'
-        styled.to_excel('requested_sessions/' + filename, engine='openpyxl')
+        filename = f'{user.username}_{quiz.name}.xlsx'
+        dirname = os.path.join(
+            config.BASE_DIR,
+            config.EXCEL_FOLDER,
+            'users',
+            user.username,
+        )
 
-        return filename, qsession.date
+        if not os.path.isdir(dirname):
+            Path(dirname).mkdir(parents=True)
 
-    def import_data(self, filename='/quiz_data.xlsx'):
+        styled.to_excel(os.path.join(dirname, filename), engine='openpyxl')
+
+        return os.path.join(dirname, filename), qsession.date
+
+    def import_data(
+        self,
+        path=os.path.join(
+            config.BASE_DIR, config.EXCEL_FOLDER, 'quiz_data.xlsx'
+        )
+    ):
+        print(path)
 
         self.connection.execute(delete(answers))
         self.connection.execute(delete(questions))
@@ -345,8 +395,7 @@ class DBManager(metaclass=Singleton):
         self.connection.execute(delete(quiz_sessions))
         self.connection.commit()
 
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        df = pd.read_excel(BASE_DIR + filename)
+        df = pd.read_excel(path)
 
         added_quizzes = set()
 
@@ -362,19 +411,26 @@ class DBManager(metaclass=Singleton):
 
             question_id = self.create_question(quiz_id=quiz.id, text=row[2])[0]
             answers_data = []
+            dub_checker = []
 
             for idx in range(3, len(row)):
-                if str(row[idx]) in ['', 'nan', '-', None, 'NULL']:
+                text = str(row[idx]).strip()
+                if text in ['', 'nan', '-', None, 'NULL', 'None']:
                     continue
+
+                if text in dub_checker:
+                    text += 'er'
 
                 is_correct = 1 if idx == 3 else 0
                 answers_data.append(
                     {
                         'question_id': question_id,
-                        'text': row[idx],
+                        'text': text,
                         'is_correct': is_correct
                     }
                 )
+
+                dub_checker.append(text)
 
             self.create_answer(data=answers_data)
 

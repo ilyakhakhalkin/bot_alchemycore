@@ -9,11 +9,12 @@ class HandlerPoll(Handler):
     def __init__(self, bot) -> None:
         super().__init__(bot)
 
+    @staticmethod
     def send_next_poll(self, user_id):
         user_response = self.DB.get_next_response(user_id=user_id)
 
         if user_response is None:
-            self.complete_quiz(user_id=user_id)
+            self.complete_quiz(self, user_id=user_id)
             return
 
         question = self.DB.get_questions(q_id=user_response.question_id)
@@ -60,12 +61,23 @@ class HandlerPoll(Handler):
             answer_id=answers[0].id
         )
 
-        self.send_next_poll(user_id=poll_answer.user.id)
+        self.send_next_poll(self, user_id=poll_answer.user.id)
 
+    @staticmethod
     def complete_quiz(self, user_id):
-        message = self.compose_results_message(user_id)
 
-        self.bot.send_message(user_id, message)
+        qsession = self.DB.get_quiz_session(user_id=user_id)
+        score = self.DB.get_score(qsession=qsession)
+
+        grade = HandlerPoll.estimate_grade(score['percentage'])
+        grade_message = MESSAGES[grade]
+        text_message = MESSAGES['RESULT_STAT'].format(
+            score['points'], score['total'], score['percentage']
+        )
+
+        self.bot.send_message(
+            user_id, f'{text_message}\n\n{grade_message}'
+        )
 
         self.bot.send_message(
             user_id,
@@ -73,19 +85,8 @@ class HandlerPoll(Handler):
             reply_markup=self.keyboard.request_teacher_markup()
         )
 
-    def compose_results_message(self, user_id) -> str:
-        qsession = self.DB.get_quiz_session(user_id=user_id)
-        score = self.DB.get_score(qsession=qsession)
-
-        grade = self.estimate_grade(score['percentage'])
-        grade_message = MESSAGES[grade]
-        text_message = MESSAGES['RESULT_STAT'].format(
-            score['points'], score['total'], score['percentage']
-        )
-
-        return f'{text_message}\n\n{grade_message}'
-
-    def estimate_grade(self, percentage: int) -> str:
+    @staticmethod
+    def estimate_grade(percentage: int) -> str:
         for grade in config.QUIZ_GRADE_RANGE:
             boundaries = range(
                 config.QUIZ_GRADE_RANGE[grade][0],
@@ -99,4 +100,9 @@ class HandlerPoll(Handler):
 
         @self.bot.poll_answer_handler()
         def handle(poll_answer):
+            user = self.DB.get_user(user_id=poll_answer.user.id)
+
+            if user is None or user.blocked:
+                return
+
             self.poll_answer_received(poll_answer)

@@ -2,7 +2,7 @@ version: '3.3'
 
 services:
   db:
-    container_name: db
+    container_name: db_bot
     image: postgres:latest
     ports:
         - "5432:5432"
@@ -13,8 +13,9 @@ services:
 
   backend:
     container_name: tgbot
-    build:
-      context: ./
+      #build:
+      #context: ./
+    image: ilyakhakhalkin/sprachbot_alchemycore:v1.3
     restart: always
     command: >
       bash -c "python3 tgbot.py"
@@ -22,17 +23,6 @@ services:
       - db
     env_file:
       - ./.env
-
-  # nginx:
-  #     container_name: nginx
-  #     image: nginx:1.21.3-alpine
-  #     ports:
-  #       - "80:80"
-  #     volumes:
-  #       - ./nginx:/etc/nginx/conf.d/
-  #     restart: always
-  #     depends_on:
-  #       - backend
 
 volumes:
   postgres_data:

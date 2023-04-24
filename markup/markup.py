@@ -23,7 +23,7 @@ class Keyboard:
         contact_btn = self.set_btn('CONTACTS')
         info_btn = self.set_btn('ABOUT')
 
-        self.markup.row(test_btn, info_btn, contact_btn)
+        self.markup.add(test_btn, info_btn, contact_btn)
 
         return self.markup
 
@@ -31,24 +31,23 @@ class Keyboard:
         self.markup = ReplyKeyboardMarkup(True, True, row_width=2)
         quizzes = self.DB.get_quizzes()
 
-        buttons = []
         for q in quizzes:
             config.KEYBOARD['LEVEL_' + q.name] = emojize(':star: ' + q.name)
             config.QUIZ_LEVELS[emojize(':star: ' + q.name)] = q.id
 
-            buttons.append(self.set_btn('LEVEL_' + q.name))
+            self.markup.add(self.set_btn('LEVEL_' + q.name))
 
         main_menu = self.set_btn('MAIN_MENU')
-
-        self.markup.row(*buttons, main_menu)
+        self.markup.add(main_menu)
 
         return self.markup
 
     def quiz_menu(self):
         self.markup = ReplyKeyboardMarkup(True, True, row_width=2)
         main_menu = self.set_btn('MAIN_MENU')
+        complete_btn = self.set_btn('COMPLETE_QUIZ')
 
-        self.markup.row(main_menu)
+        self.markup.add(main_menu, complete_btn)
 
         return self.markup
 
@@ -56,7 +55,7 @@ class Keyboard:
         self.markup = ReplyKeyboardMarkup(True, True, row_width=2)
         main_menu = self.set_btn('MAIN_MENU')
 
-        self.markup.row(main_menu)
+        self.markup.add(main_menu)
 
         return self.markup
 
@@ -66,7 +65,6 @@ class Keyboard:
         request_btn = self.set_btn('REQUEST_TEACHER')
         decline_btn = self.set_btn('DECLINE_TEACHER')
 
-        self.markup.row(request_btn)
-        self.markup.row(decline_btn)
+        self.markup.add(request_btn, decline_btn)
 
         return self.markup

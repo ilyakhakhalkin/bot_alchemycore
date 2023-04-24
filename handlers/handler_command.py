@@ -12,6 +12,9 @@ class HandlerCommand(Handler):
         if user is None:
             user = self.DB.create_user(user_data=message.from_user)
 
+        if user.blocked:
+            return
+
         name = user.first_name or user.username
 
         self.bot.send_message(

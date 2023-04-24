@@ -40,6 +40,7 @@ BAD_GRADE = ':3rd_place_medal: Маловато баллов, этот уров�
 GOOD_GRADE = ':2nd_place_medal: Хорошо, но нужно кое-что повторить.'
 PERFECT_GRADE = ':1st_place_medal: Ты молодец! Отлично!'
 
+ERROR_MSG = 'Что-то пошло не так :pleading_face:'
 
 MESSAGES = {
     'START_MSG': START_MSG,
@@ -53,5 +54,6 @@ MESSAGES = {
     'THANKS_AND_INVITE': THANKS_AND_INVITE,
     'ABOUT': emojize(ABOUT),
     'CONTACTS': CONTACTS,
-    'TEACHER_REQUESTED': TEACHER_REQUESTED
+    'TEACHER_REQUESTED': TEACHER_REQUESTED,
+    'ERROR': emojize(ERROR_MSG),
 }
