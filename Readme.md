@@ -2,7 +2,7 @@
 ## Description
 This is a quiz Telegram bot that was made for a German language teacher to provide a testing system for students. As a student, you can take a test, see the results, and optionally send a request to the teacher for consultation. For more detailed information, please refer to the 'Setup' section.
 
-Version 1.4 is the MVP (minimum viable product) version of the project - a simple synchronous system that will be improved in the future. It is not perfect and has not been fully optimized yet. The next tasks will be described in the backlog section.
+Version 1.5 is the MVP (minimum viable product) version of the project - a simple synchronous system that will be improved in the future. It is not perfect and has not been fully optimized yet. The next tasks will be described in the backlog section.
 
 ## Tech stack
 - Python
