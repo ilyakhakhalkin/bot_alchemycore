@@ -31,7 +31,7 @@ class DBManager(metaclass=Singleton):
 
         self.connection = self.engine.connect()
 
-    def get_user(self, user_id: int = None, username:str = None):
+    def get_user(self, user_id: int = None, username: str = None):
         s = select(users)
 
         if username is not None:
@@ -441,27 +441,3 @@ def color(row):
     elif row[2] is False:
         return ['background-color: #FF7777'] * len(row)
     return [''] * len(row)
-
-    # def grant_admin_permissions(self, requested_from, username):
-    #     print('DB:: grant_admin_permissions')
-    #     if not self._session.query(User).filter(User.id == requested_from).first().is_admin:
-    #         return
-
-    #     user = self._session.query(User).filter(User.username == username).first()
-    #     if user:
-    #         user.is_admin = 1
-
-    #     self.commit()
-    #     self.close()
-
-    # def remove_admin_permissions(self, requested_from, username):
-    #     print('DB:: remove_admin_permissions')
-    #     if not self._session.query(User).filter(User.id == requested_from).first().is_admin:
-    #         return
-
-    #     user = self._session.query(User).filter(User.username == username).first()
-    #     if user:
-    #         user.is_admin = 0
-
-    #     self.commit()
-    #     self.close()

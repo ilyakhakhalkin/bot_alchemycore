@@ -49,7 +49,7 @@ class HandlerAllText(Handler):
 
         self.bot.send_message(
             user.id,
-            f'Уровень: {message.text}\nКоличество вопросов: {questions_num}',
+            f'Level: {message.text}\nQuestions: {questions_num}',
         )
         HandlerPoll.send_next_poll(self, user_id=user.id)
 
@@ -67,13 +67,6 @@ class HandlerAllText(Handler):
         self.bot.send_message(
             message.chat.id,
             MESSAGES['CONTACTS'],
-            reply_markup=self.keyboard.go_back_to_main()
-        )
-
-    def pressed_btn_settings(self, message):
-        self.bot.send_message(
-            message.chat.id,
-            'Настройки временно недоступны',
             reply_markup=self.keyboard.go_back_to_main()
         )
 
@@ -98,7 +91,6 @@ class HandlerAllText(Handler):
                 reply_markup=self.keyboard.start_menu()
         )
 
-
     def send_request_to_admins(self, user):
         admin_id_list = self.DB.get_admins()
 
@@ -115,7 +107,7 @@ class HandlerAllText(Handler):
                 self.bot.send_document(
                     admin_id,
                     document=file,
-                    caption=f'Новый запрос:\n@{user.username}\n{date}',
+                    caption=f'New request:\n@{user.username}\n{date}',
                     reply_markup=self.keyboard.start_menu(),
                 )
 
@@ -128,18 +120,12 @@ class HandlerAllText(Handler):
             reply_markup=self.keyboard.start_menu(),
         )
 
-        # self.bot.send_message(
-        #     message.chat.id,
-        #     MESSAGES['ASK_NEXT_QUIZ'],
-        #     reply_markup=self.keyboard.start_menu(),
-        # )
-
     def get_statistic(self, message):
         unique_users_count = self.DB.get_user_count()
 
         self.bot.send_message(
             message.from_user.id,
-            f'Уникальные пользователи: {unique_users_count}',
+            f'Unique users: {unique_users_count}',
         )
 
     @admin_only
@@ -156,24 +142,6 @@ class HandlerAllText(Handler):
 
         if user is not None:
             self.DB.unblock_user(user_id=user.id)
-
-    @admin_only
-    def set_admins(self, message, data):
-        for username in data[2].split(' '):
-            if '@' in username:
-                self.DB.grant_admin_permissions(
-                    requested_from=message.from_user.id,
-                    username=username.split('@')[1]
-                )
-
-    @admin_only
-    def del_admins(self, message, data):
-        for username in data[2].split(' '):
-            if '@' in username:
-                self.DB.remove_admin_permissions(
-                    requested_from=message.from_user.id,
-                    username=username.split('@')[1]
-                )
 
     @admin_only
     def load_data(self, message, text, from_message=False):
@@ -266,9 +234,6 @@ class HandlerAllText(Handler):
 
             if message.text == config.KEYBOARD['CONTACTS']:
                 self.pressed_btn_contacts(message)
-
-            if message.text == config.KEYBOARD['SETTINGS']:
-                self.pressed_btn_settings(message)
 
             if message.text == config.KEYBOARD['COMPLETE_QUIZ']:
                 self.pressed_btn_complete_quiz(message=message, user=user)
