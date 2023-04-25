@@ -85,7 +85,7 @@ You can put the same token in both variables or register two separate bots - one
 python3 tgbot.py
 ```
 
-2. Send /start command in the telegram chat with your bot
+2. Send /start command in the telegram's bot chat
 
 3. Next, you will need to load quiz data to the database. There are two options:
 - to load default quiz_data.xlsx file just send to the chat the LOAD_DATA_COMMAND (specified in .env) on the first line and ADMIN_PASSWORD (also specified in .env) on the second line
