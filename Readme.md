@@ -24,7 +24,7 @@ git clone https://github.com/ilyakhakhalkin/bot_alchemycore.git
 ```
 
 2. Create virtual environment:
-````
+```
 python3 -m venv venv
 ```
 
