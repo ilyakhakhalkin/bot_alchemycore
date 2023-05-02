@@ -14,7 +14,7 @@ class HandlerPoll(Handler):
         user_response = self.DB.get_next_response(user_id=user_id)
 
         if user_response is None:
-            self.complete_quiz(self, user_id=user_id)
+            HandlerPoll.complete_quiz(self, user_id=user_id)
             return
 
         question = self.DB.get_questions(q_id=user_response.question_id)
@@ -65,15 +65,26 @@ class HandlerPoll(Handler):
 
     @staticmethod
     def complete_quiz(self, user_id):
+        user = self.DB.get_user(user_id=user_id)
 
         qsession = self.DB.get_quiz_session(user_id=user_id)
         score = self.DB.get_score(qsession=qsession)
+        filepath = self.DB.export_session(user=user)
+
+        self.DB.update_qsession(
+            qsession=qsession,
+            completed=True,
+            score=score['points'],
+            filepath=filepath,
+        )
 
         grade = HandlerPoll.estimate_grade(score['percentage'])
         grade_message = MESSAGES[grade]
         text_message = MESSAGES['RESULT_STAT'].format(
             score['points'], score['total'], score['percentage']
         )
+
+        self.DB.delete_responses(user_id)
 
         self.bot.send_message(
             user_id, f'{text_message}\n\n{grade_message}'

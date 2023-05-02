@@ -7,19 +7,21 @@ class HandlerCommand(Handler):
         super().__init__(bot)
 
     def pressed_btn_start(self, message):
+
         user = self.DB.get_user(user_id=message.from_user.id)
 
         if user is None:
             user = self.DB.create_user(user_data=message.from_user)
 
+        elif message.from_user.username != user.username:
+            self.DB.update_user(user_data=message.from_user)
+
         if user.blocked:
             return
 
-        name = user.first_name or user.username
-
         self.bot.send_message(
             user.id,
-            MESSAGES['START_MSG'].format(name),
+            MESSAGES['START_MSG'].format(user.full_name),
             reply_markup=self.keyboard.start_menu()
         )
 

@@ -70,21 +70,24 @@ class HandlerAllText(Handler):
             reply_markup=self.keyboard.go_back_to_main()
         )
 
-    def pressed_btn_settings(self, message):
-        self.bot.send_message(
-            message.chat.id,
-            'Настройки временно недоступны',
-            reply_markup=self.keyboard.go_back_to_main()
-        )
-
     def pressed_btn_request_teacher(self, message, user):
-        if self.send_request_to_admins(user=user):
+        qsession = self.DB.request_session(user_id=user.id)
 
-            self.bot.send_message(
-                message.chat.id,
-                MESSAGES['TEACHER_REQUESTED'],
-                reply_markup=self.keyboard.start_menu()
-            )
+        if qsession and self.send_request_to_admins(user=user,
+                                                    qsession=qsession):
+
+            if user.username:
+                self.bot.send_message(
+                    message.chat.id,
+                    MESSAGES['TEACHER_REQUESTED'],
+                    reply_markup=self.keyboard.start_menu()
+                )
+            else:
+                self.bot.send_message(
+                    message.chat.id,
+                    MESSAGES['NO_USERNAME'],
+                    reply_markup=self.keyboard.start_menu()
+                )
 
             self.bot.send_message(
                 message.chat.id,
@@ -98,24 +101,31 @@ class HandlerAllText(Handler):
                 reply_markup=self.keyboard.start_menu()
         )
 
+        if not qsession:
+            self.bot.send_message(
+                    message.chat.id,
+                    MESSAGES['NO_SESSION_ERROR'],
+                    reply_markup=self.keyboard.start_menu()
+            )
 
-    def send_request_to_admins(self, user):
+    def send_request_to_admins(self, user, qsession):
         admin_id_list = self.DB.get_admins()
 
-        path, date = self.DB.export_session(user=user)
-
-        if path is None:
-            return
-
-        if user.username == 'ilyaxaxalkin':
+        if user.id == '171869564':
             admin_id_list = [user.id]
 
+        caption = 'New request:\n'
+        if getattr(user, 'username'):
+            caption += '@' + user.username + '\n'
+
+        caption += user.full_name
+
         for admin_id in admin_id_list:
-            with open(path, 'rb') as file:
+            with open(qsession.filepath, 'rb') as file:
                 self.bot.send_document(
                     admin_id,
                     document=file,
-                    caption=f'Новый запрос:\n@{user.username}\n{date}',
+                    caption=caption,
                     reply_markup=self.keyboard.start_menu(),
                 )
 
@@ -128,18 +138,12 @@ class HandlerAllText(Handler):
             reply_markup=self.keyboard.start_menu(),
         )
 
-        # self.bot.send_message(
-        #     message.chat.id,
-        #     MESSAGES['ASK_NEXT_QUIZ'],
-        #     reply_markup=self.keyboard.start_menu(),
-        # )
-
     def get_statistic(self, message):
         unique_users_count = self.DB.get_user_count()
 
         self.bot.send_message(
             message.from_user.id,
-            f'Уникальные пользователи: {unique_users_count}',
+            f'Unique users: {unique_users_count}',
         )
 
     @admin_only
@@ -156,24 +160,6 @@ class HandlerAllText(Handler):
 
         if user is not None:
             self.DB.unblock_user(user_id=user.id)
-
-    @admin_only
-    def set_admins(self, message, data):
-        for username in data[2].split(' '):
-            if '@' in username:
-                self.DB.grant_admin_permissions(
-                    requested_from=message.from_user.id,
-                    username=username.split('@')[1]
-                )
-
-    @admin_only
-    def del_admins(self, message, data):
-        for username in data[2].split(' '):
-            if '@' in username:
-                self.DB.remove_admin_permissions(
-                    requested_from=message.from_user.id,
-                    username=username.split('@')[1]
-                )
 
     @admin_only
     def load_data(self, message, text, from_message=False):
@@ -201,6 +187,7 @@ class HandlerAllText(Handler):
             new_file.write(downloaded_file)
 
         self.DB.import_data(path=file_path)
+        self.pressed_btn_main_menu(message)
 
     def handle(self):
 
@@ -211,33 +198,41 @@ class HandlerAllText(Handler):
                 command = auth_[0]
                 pwd = auth_[1]
 
-            except:
+            except IndexError:
                 command = None
 
-            if command == config.LOAD_DATA_COMMAND:
-                self.load_data(
-                    message=message,
-                    text=pwd,
-                )
+            else:
 
-            if command == config.BLOCK_USER_COMMAND:
-                self.block_user(
-                    message=message,
-                    text=pwd,
-                    username_to_block=auth_[2],
-                )
+                if pwd != config.ADMIN_PASSWORD:
+                    return
 
-            if command == config.UNBLOCK_USER_COMMAND:
-                self.unblock_user(
-                    message=message,
-                    text=pwd,
-                    username_to_unblock=auth_[2]
-                )
+                if command == config.LOAD_DATA_COMMAND:
+                    self.load_data(
+                        message=message,
+                        text=pwd,
+                    )
+
+                if command == config.BLOCK_USER_COMMAND:
+                    self.block_user(
+                        message=message,
+                        text=pwd,
+                        username_to_block=auth_[2],
+                    )
+
+                if command == config.UNBLOCK_USER_COMMAND:
+                    self.unblock_user(
+                        message=message,
+                        text=pwd,
+                        username_to_unblock=auth_[2]
+                    )
 
             user = self.DB.get_user(user_id=message.from_user.id)
 
             if user is None:
                 user = self.DB.create_user(user_data=message.from_user)
+
+            elif message.from_user.username != user.username:
+                self.DB.update_user(user_data=message.from_user)
 
             if user.blocked:
                 return
@@ -267,9 +262,6 @@ class HandlerAllText(Handler):
             if message.text == config.KEYBOARD['CONTACTS']:
                 self.pressed_btn_contacts(message)
 
-            if message.text == config.KEYBOARD['SETTINGS']:
-                self.pressed_btn_settings(message)
-
             if message.text == config.KEYBOARD['COMPLETE_QUIZ']:
                 self.pressed_btn_complete_quiz(message=message, user=user)
 
@@ -282,12 +274,16 @@ class HandlerAllText(Handler):
                 auth_ = message.caption.split('\n')
                 command = auth_[0]
                 pwd = auth_[1]
-            except:
+            except IndexError:
                 return
 
-            if command == config.LOAD_DATA_COMMAND:
-                self.load_data(
-                    message=message,
-                    text=pwd,
-                    from_message=True
-                )
+            else:
+                if pwd != config.ADMIN_PASSWORD:
+                    return
+
+                if command == config.LOAD_DATA_COMMAND:
+                    self.load_data(
+                        message=message,
+                        text=pwd,
+                        from_message=True
+                    )

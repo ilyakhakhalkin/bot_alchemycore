@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 from emoji import emojize
 from dotenv import load_dotenv
 
@@ -9,8 +11,6 @@ TOKEN = os.getenv('TOKEN')
 ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
 DEFAULT_ADMINS = os.getenv('DEFAULT_ADMINS')
 
-GRANT_PERM_COMMAND = os.getenv('GRANT_PERM_COMMAND')
-REMOVE_PERM_COMMAND = os.getenv('REMOVE_PERM_COMMAND')
 LOAD_DATA_COMMAND = os.getenv('LOAD_DATA_COMMAND')
 BLOCK_USER_COMMAND = os.getenv('BLOCK_USER_COMMAND')
 UNBLOCK_USER_COMMAND = os.getenv('UNBLOCK_USER_COMMAND')
@@ -27,23 +27,19 @@ POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
 DB_HOST = os.getenv('DB_HOST')
 DB_PORT = os.getenv('DB_PORT')
 
-BASE_DIR = os.path.join(os.path.dirname(__file__), '..')
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 DATABASE = os.path.join(
-    f'postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+    f'{DB_ENGINE}{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 )
 
 EXCEL_FOLDER = 'excel_files'
 
+
 if DEBUG:
-    TOKEN = os.getenv('DEBUG_TOKEN')
-    DATABASE = os.path.join('sqlite:///' + BASE_DIR, NAME_DB)
-    print(DATABASE)
-
-COUNT = 0
-
-VK_PERSONAL_LINK = 'https://vk.com/tat_hah'
-VK_COMMUNITY_LINK = 'https://vk.com/lernenwirdeutsch'
+    TOKEN = os.getenv('DEV_TOKEN')
+    ENGINE_DB = os.getenv('ENGINE_DB')
+    DATABASE = os.path.join(f'{ENGINE_DB}{BASE_DIR}', NAME_DB)
 
 
 KEYBOARD = {
@@ -69,4 +65,15 @@ QUIZ_GRADE_RANGE = {
     'BAD_GRADE': [0, 35],
     'GOOD_GRADE': [36, 70],
     'PERFECT_GRADE': [70, 100],
+}
+
+ANSWER_LABELS = {
+    True: '+',
+    None: 'N/A',
+    False: '-'
+}
+
+ANSWER_COLORS = {
+    '+': 'background-color : green',
+    '-': 'background-color : lightskyblue',
 }

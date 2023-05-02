@@ -13,9 +13,9 @@ services:
 
   backend:
     container_name: tgbot
-      #build:
-      #context: ./
-    image: ilyakhakhalkin/sprachbot_alchemycore:v1.3
+    build:
+      context: ./
+    # image: ilyakhakhalkin/sprachbot_alchemycore:v1.3
     restart: always
     command: >
       bash -c "python3 tgbot.py"

@@ -4,8 +4,8 @@ from typing import List
 
 import pandas as pd
 from sqlalchemy import create_engine, insert, select, delete, and_, or_, update
-from sqlalchemy.sql.expression import true
-from sqlalchemy.sql import func
+from sqlalchemy.sql.expression import true, false
+from sqlalchemy.sql import func, desc
 
 from settings import config
 
@@ -31,7 +31,7 @@ class DBManager(metaclass=Singleton):
 
         self.connection = self.engine.connect()
 
-    def get_user(self, user_id: int = None, username:str = None):
+    def get_user(self, user_id: int = None, username: str = None):
         s = select(users)
 
         if username is not None:
@@ -53,6 +53,7 @@ class DBManager(metaclass=Singleton):
         username: str = None,
         first_name: str = None,
         last_name: str = None,
+        full_name: str = None,
         is_admin: bool = False,
         blocked: bool = False,
     ):
@@ -62,12 +63,13 @@ class DBManager(metaclass=Singleton):
                 'username': getattr(user_data, 'username', username),
                 'first_name': getattr(user_data, 'first_name', first_name),
                 'last_name': getattr(user_data, 'last_name', last_name),
+                'full_name': getattr(user_data, 'full_name', full_name),
                 'is_admin': getattr(user_data, 'is_admin', is_admin),
                 'blocked': getattr(user_data, 'blocked', blocked),
             }
         ]
 
-        if data[0]['username'] in config.DEFAULT_ADMINS:
+        if (str(data[0]['id']) in config.DEFAULT_ADMINS):
             data[0]['is_admin'] = True
 
         ins = users.insert()
@@ -75,6 +77,19 @@ class DBManager(metaclass=Singleton):
         self.connection.commit()
 
         return self.get_user(user_id=rp.inserted_primary_key[0])
+
+    def update_user(self, user_data):
+        data = {
+                'username': getattr(user_data, 'username'),
+                'first_name': getattr(user_data, 'first_name'),
+                'last_name': getattr(user_data, 'last_name'),
+                'full_name': getattr(user_data, 'full_name'),
+            }
+
+        u = update(users).where(users.c.id == user_data.id)
+        u = u.values(data)
+        self.connection.execute(u)
+        self.connection.commit()
 
     def block_user(self, user_id):
         u = update(users).where(users.c.id == user_id)
@@ -135,7 +150,11 @@ class DBManager(metaclass=Singleton):
         return self.connection.execute(s).fetchall()
 
     def get_quiz_session(self, user_id):
-        s = select(quiz_sessions).where(quiz_sessions.c.user_id == user_id)
+        s = select(quiz_sessions).where(
+            quiz_sessions.c.user_id == user_id,
+            quiz_sessions.c.completed == false()
+        ).order_by(desc(quiz_sessions.c.date))
+
         return self.connection.execute(s).first()
 
     def get_responses(self, user_id: int = None, qsession_id: int = None):
@@ -186,14 +205,17 @@ class DBManager(metaclass=Singleton):
 
         return rp.inserted_primary_key[0]
 
-    def delete_quiz_sessions(self, user_id: int):
-        d_responses = delete(responses).where(responses.c.user_id == user_id)
-        d_sesssions = delete(quiz_sessions).where(
-            quiz_sessions.c.user_id == user_id
+    def delete_quiz_sessions(self, user_id):
+        d = delete(quiz_sessions).where(
+            quiz_sessions.c.user_id == user_id,
+            quiz_sessions.c.completed == false(),
         )
+        self.connection.execute(d)
+        self.connection.commit()
 
+    def delete_responses(self, user_id: int):
+        d_responses = delete(responses).where(responses.c.user_id == user_id)
         self.connection.execute(d_responses)
-        self.connection.execute(d_sesssions)
         self.connection.commit()
 
     def create_response(self,
@@ -225,8 +247,9 @@ class DBManager(metaclass=Singleton):
         return rp.inserted_primary_key
 
     def new_quiz_session(self, user_id: int, quiz_id: int):
+        self.delete_responses(user_id)
+        self.delete_quiz_sessions(user_id)
 
-        self.delete_quiz_sessions(user_id=user_id)
         qsession_id = self.create_quiz_session(
             user_id=user_id,
             quiz_id=quiz_id
@@ -251,7 +274,7 @@ class DBManager(metaclass=Singleton):
         s = select(responses).where(
             and_(
                 responses.c.quiz_session_id == qsession.id,
-                responses.c.poll_id == None,
+                responses.c.poll_id == None
             )
         )
 
@@ -317,6 +340,40 @@ class DBManager(metaclass=Singleton):
 
         return score
 
+    def request_session(self, user_id):
+        u = select(quiz_sessions).where(
+            quiz_sessions.c.user_id == user_id,
+            quiz_sessions.c.completed == true(),
+            quiz_sessions.c.requested == false(),
+        ).order_by(desc(quiz_sessions.c.date))
+
+        qsession = self.connection.execute(u).first()
+        if qsession:
+            self.update_qsession(qsession=qsession, requested=True)
+
+        return qsession
+
+    def update_qsession(self,
+                        qsession,
+                        filepath: str = None,
+                        score: int = None,
+                        completed: bool = False,
+                        requested: bool = False,
+                        ):
+        u = update(quiz_sessions).where(quiz_sessions.c.id == qsession.id)
+
+        if requested:
+            u = u.values(requested=requested)
+        if filepath:
+            u = u.values(filepath=filepath)
+        if score:
+            u = u.values(score=score)
+        if completed:
+            u = u.values(completed=completed)
+
+        self.connection.execute(u)
+        self.connection.commit()
+
     def get_admins(self):
         s = select(users).where(
             or_(
@@ -340,45 +397,49 @@ class DBManager(metaclass=Singleton):
         data = []
         indexes = []
 
-        for r in user_responses:
+        for i, r in enumerate(user_responses):
             ans = self.get_answers(ans_id=r.answer_id)
             q = self.get_questions(q_id=r.question_id)
 
-            indexes.append(getattr(q, 'id', '-'))
+            indexes.append(i + 1)
             data.append(
                 [
                     getattr(q, 'text', 'Question not found'),
                     getattr(ans, 'text', ''),
-                    getattr(ans, 'is_correct', '')
+                    config.ANSWER_LABELS[getattr(ans, 'is_correct', None)]
                 ]
             )
 
         df = pd.DataFrame(
             data,
             index=indexes,
-            columns=['QUESTION', 'ANSWER', 'CORRECT']
+            columns=['Q', 'A', '+/-']
         )
 
         styled = (
             df.style.applymap(
-                lambda v: 'background-color : green' if v == 'TRUE' else ''
+                lambda v: config.ANSWER_COLORS[v] if v in config.ANSWER_COLORS else ''
             )
         )
         styled.apply(color, axis=1)
-        filename = f'{user.username}_{quiz.name}.xlsx'
+
+        filename = f'{user.full_name}_{quiz.name}.xlsx'
         dirname = os.path.join(
             config.BASE_DIR,
             config.EXCEL_FOLDER,
             'users',
-            user.username,
+            str(user.id),
+            str(qsession.id)
         )
+
+        fullpath = os.path.join(dirname, filename)
 
         if not os.path.isdir(dirname):
             Path(dirname).mkdir(parents=True)
 
-        styled.to_excel(os.path.join(dirname, filename), engine='openpyxl')
+        styled.to_excel(fullpath, engine='openpyxl')
 
-        return os.path.join(dirname, filename), qsession.date
+        return fullpath
 
     def import_data(
         self,
@@ -386,8 +447,6 @@ class DBManager(metaclass=Singleton):
             config.BASE_DIR, config.EXCEL_FOLDER, 'quiz_data.xlsx'
         )
     ):
-        print(path)
-
         self.connection.execute(delete(answers))
         self.connection.execute(delete(questions))
         self.connection.execute(delete(quizzes))
@@ -441,27 +500,3 @@ def color(row):
     elif row[2] is False:
         return ['background-color: #FF7777'] * len(row)
     return [''] * len(row)
-
-    # def grant_admin_permissions(self, requested_from, username):
-    #     print('DB:: grant_admin_permissions')
-    #     if not self._session.query(User).filter(User.id == requested_from).first().is_admin:
-    #         return
-
-    #     user = self._session.query(User).filter(User.username == username).first()
-    #     if user:
-    #         user.is_admin = 1
-
-    #     self.commit()
-    #     self.close()
-
-    # def remove_admin_permissions(self, requested_from, username):
-    #     print('DB:: remove_admin_permissions')
-    #     if not self._session.query(User).filter(User.id == requested_from).first().is_admin:
-    #         return
-
-    #     user = self._session.query(User).filter(User.username == username).first()
-    #     if user:
-    #         user.is_admin = 0
-
-    #     self.commit()
-    #     self.close()

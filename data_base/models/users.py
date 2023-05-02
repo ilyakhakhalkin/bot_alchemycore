@@ -1,4 +1,4 @@
-from sqlalchemy import Table, Column, Integer, String, Boolean
+from sqlalchemy import Table, Column, String, Boolean, BigInteger
 
 from .metadata import metadata
 
@@ -6,11 +6,11 @@ from .metadata import metadata
 users = Table(
     'users',
     metadata,
-    Column('id', Integer(), primary_key=True),
-    Column('username', String(), unique=True),
-    Column('first_name', String()),
-    Column('last_name', String),
+    Column('id', BigInteger(), primary_key=True),
+    Column('username', String(), unique=True, nullable=True),
+    Column('first_name', String(), nullable=False),
+    Column('last_name', String(), nullable=True),
+    Column('full_name', String(), nullable=False),
     Column('is_admin', Boolean(), default=False),
     Column('blocked', Boolean(), default=False),
 )
-
